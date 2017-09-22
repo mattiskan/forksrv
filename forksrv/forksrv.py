@@ -9,6 +9,7 @@ import subprocess
 import itertools
 from contextlib import contextmanager
 
+# works in both python2 and python3, but unfortunately you can't mix python versions..
 try:
     from multiprocessing.reduction import sendfds, recvfds
 except ImportError:
@@ -23,7 +24,7 @@ except ImportError:
 
 
 
-DEFAULT_SOCKETFILE = '{}/uds_socket'.format(os.environ['HOME'])
+DEFAULT_SOCKETFILE = '{}/python{}_uds_socket'.format(os.environ['HOME'], sys.version_info.major)
 
 
 @contextmanager
@@ -41,7 +42,8 @@ def remote_bash():
 
 
 def server(target_fn, setup_fn=None, socketfile=DEFAULT_SOCKETFILE):
-    with reserve_socketfile(socketfile), socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as uds:
+    with reserve_socketfile(socketfile):
+        uds = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         uds.bind(socketfile)
         uds.listen(1)
 
@@ -68,10 +70,10 @@ def server(target_fn, setup_fn=None, socketfile=DEFAULT_SOCKETFILE):
                 conn.send(b'\x00') # let client know it can stop blocking
         
 def client(socketfile=DEFAULT_SOCKETFILE):
-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as conn:
-        conn.connect(socketfile)
-        sendfds(conn, [sys.stdin.fileno(), sys.stdout.fileno(), sys.stderr.fileno()])
-        conn.recv(1) # block this process until remote is finished
+    conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    conn.connect(socketfile)
+    sendfds(conn, [sys.stdin.fileno(), sys.stdout.fileno(), sys.stderr.fileno()])
+    conn.recv(1) # block this process until remote is finished
 
 
 if __name__ == '__main__':
