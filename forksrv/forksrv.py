@@ -34,7 +34,10 @@ def reserve_socketfile(socketfile):
     try:
         yield
     finally:
-        os.unlink(socketfile)
+        try:
+            os.unlink(socketfile)
+        except:
+            pass
 
 
 def remote_bash():
