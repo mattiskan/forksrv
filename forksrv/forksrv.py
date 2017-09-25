@@ -9,6 +9,7 @@ import subprocess
 import itertools
 from contextlib import contextmanager
 
+
 # works in both python2 and python3, but unfortunately you can't mix python versions..
 try:
     from multiprocessing.reduction import sendfds, recvfds
@@ -25,7 +26,7 @@ except ImportError:
 
 
 DEFAULT_SOCKETFILE = '{}/python{}_uds_socket'.format(os.environ['HOME'], sys.version_info.major)
-
+ARGV_SPLIT_TOKEN = '%%'
 
 @contextmanager
 def reserve_socketfile(socketfile):
@@ -62,7 +63,9 @@ def server(target_fn, setup_fn=None, socketfile=DEFAULT_SOCKETFILE):
                     for remote,local in zip(recvfds(conn, 3), [sys.stdin, sys.stdout, sys.stderr]):
                         os.dup2(remote, local.fileno())
 
-                    target_fn()
+                    argv = conn.recv(123).strip('\x00').split(ARGV_SPLIT_TOKEN)
+
+                    target_fn(argv)
                 except:
                     traceback.print_exc() # print exception to redirected (remote) stderr
                 finally:
@@ -72,10 +75,13 @@ def server(target_fn, setup_fn=None, socketfile=DEFAULT_SOCKETFILE):
                 os.waitpid(pid, 0)
                 conn.send(b'\x00') # let client know it can stop blocking
         
-def client(socketfile=DEFAULT_SOCKETFILE):
+def client(argv, socketfile=DEFAULT_SOCKETFILE):
     conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     conn.connect(socketfile)
+
     sendfds(conn, [sys.stdin.fileno(), sys.stdout.fileno(), sys.stderr.fileno()])
+    conn.send(ARGV_SPLIT_TOKEN.join(argv))
+
     conn.recv(1) # block this process until remote is finished
 
 
@@ -83,6 +89,6 @@ if __name__ == '__main__':
     if sys.argv[1] == 'server':
         server(remote_bash)
     elif sys.argv[1] == 'client':
-        client()
+        client(sys.argv[2:])
     else:
         print('bad args')
