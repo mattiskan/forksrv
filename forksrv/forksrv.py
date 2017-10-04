@@ -24,7 +24,7 @@ except ImportError:
         return [_multiprocessing.recvfd(conn.fileno()) for _ in range(num)]
 
 
-
+# putting the python version in the socket name prevents cross-version connect (they deadlock..)
 DEFAULT_SOCKETFILE = '{}/python{}_uds_socket'.format(os.environ['HOME'], sys.version_info.major)
 ARGV_SPLIT_TOKEN = '%%'
 
@@ -86,6 +86,7 @@ def client(argv, socketfile=DEFAULT_SOCKETFILE):
 
 
 if __name__ == '__main__':
+    # todo: argparse
     if sys.argv[1] == 'server':
         server(remote_bash)
     elif sys.argv[1] == 'client':
