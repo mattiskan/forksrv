@@ -1,6 +1,9 @@
 # Forksrv
 Provides the base for running a cmd in a separate process.
 
+I use this to do expensive imports so I can run tests in a memory copy, but the contract is pretty generic.
+
+
 Example Usage:
 ```
 # start server
